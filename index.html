@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Liver and the Stars</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@300;400;700&family=Cutive+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* layout: one screen at a time; a single drawing fills the screen, words stay at the edges.
+     Liver = ink on paper. Sky = the same marks inverted. Readings = a narrow column of text. */
+  --paper:#fdfdfb;
+  --ink:#141414;
+  --night:#0d0d0d;
+  --chalk:#f3f3ee;
+  --pencil:#8a8a86;
+  --hand:"Gaegu","Bradley Hand","Segoe Print","Comic Sans MS",cursive;
+  --mono:"Cutive Mono","Courier New",Courier,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--hand);font-size:22px;line-height:1.35}
+.screen{display:none;height:100%;flex-direction:column}
+.screen.on{display:flex}
+.bar{display:flex;justify-content:space-between;gap:16px;padding:14px 20px;font-family:var(--mono);font-size:13px;color:var(--pencil);letter-spacing:.02em}
+.stage{flex:1;min-height:0;position:relative}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.foot{padding:10px 20px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;min-height:118px}
+.caption{min-height:2.7em;max-width:34em;text-wrap:balance}
+.row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;align-items:center}
+button{font-family:var(--hand);font-size:22px;color:inherit;background:transparent;cursor:pointer;
+  padding:4px 20px 6px;border:2px solid currentColor;
+  border-radius:255px 15px 225px 15px/15px 225px 15px 255px;transition:transform .12s}
+button:hover:not(:disabled){transform:rotate(-1.5deg) scale(1.04)}
+button:focus-visible,a:focus-visible{outline:2px dashed currentColor;outline-offset:4px}
+button:disabled{opacity:.3;cursor:default}
+button.quiet{border:none;font-family:var(--mono);font-size:13px;color:var(--pencil);text-decoration:underline;padding:4px 6px}
+
+/* intro */
+#intro{align-items:center;justify-content:center;text-align:center;padding:24px 20px;gap:18px}
+#intro h1{font-weight:300;font-size:clamp(44px,9vw,92px);line-height:.95;margin:0;letter-spacing:.04em;text-wrap:balance}
+#intro h1 span{display:inline-block}
+#intro p{max-width:24em;margin:0;text-wrap:balance}
+.seal{width:min(520px,90%);height:54px;display:block}
+.small{font-family:var(--mono);font-size:13px;color:var(--pencil)}
+
+/* sky */
+#sky{background:var(--night);color:var(--chalk)}
+#sky .bar{color:#9a9a94}
+
+/* readings */
+.read{overflow-y:auto;display:none;height:100%}
+.read.on{display:block}
+.col{max-width:34em;margin:0 auto;padding:36px 20px 64px;display:flex;flex-direction:column;gap:26px}
+.col h2{font-weight:300;font-size:clamp(38px,7vw,58px);line-height:1;margin:0;text-wrap:balance}
+.col h3{font-weight:700;font-size:24px;margin:0}
+.verdict{font-size:30px;line-height:1.15;text-wrap:balance}
+.signs{display:flex;flex-direction:column;gap:22px;list-style:none;margin:0;padding:0}
+.sign{display:flex;flex-direction:column;gap:3px;padding-left:16px;border-left:2px solid var(--ink)}
+.sign.against{border-left-style:dashed}
+.sign .where{font-family:var(--mono);font-size:13px;color:var(--pencil)}
+.sign .old{font-family:var(--mono);font-size:15px;line-height:1.45}
+.sign .now{font-size:26px;line-height:1.15}
+.history{display:flex;flex-direction:column;gap:18px}
+.history p{margin:0;font-family:var(--mono);font-size:15px;line-height:1.6}
+.history section{display:flex;flex-direction:column;gap:6px}
+.history[hidden]{display:none}
+.tally{display:flex;gap:28px;flex-wrap:wrap;font-size:26px}
+.tally b{font-weight:300;font-size:64px;line-height:1;display:block}
+.note{font-family:var(--mono);font-size:13px;line-height:1.55;color:var(--pencil);margin:0}
+@media (max-width:480px){body{font-size:20px}.sign .now{font-size:23px}}
+@media (prefers-reduced-motion:reduce){button{transition:none}}
+</style>
+</head>
+<body>
+
+<section class="screen on" id="intro">
+  <canvas class="seal" id="seal1" aria-hidden="true"></canvas>
+  <h1><span>the liver</span> <span>&amp; the stars</span></h1>
+  <p>In Babylon a diviner read the gods' answer in the liver of a sheep, then looked to the night sky. A liver has been drawn for you. No two are alike.</p>
+  <button id="begin">Look at the liver</button>
+  <div class="small" id="seedTag"></div>
+</section>
+
+<section class="screen" id="liver">
+  <div class="bar"><span>I. the liver</span><span id="liverCount"></span></div>
+  <div class="stage"><canvas id="liverC" aria-label="A hand-drawn sheep liver. Move over it to find the hidden marks, and click a mark to ink it in."></canvas></div>
+  <div class="foot">
+    <div class="caption" id="liverCap" aria-live="polite">The gods have left marks on it. Move slowly and click where you see one.</div>
+    <div class="row">
+      <button id="liverNext" hidden>Read the liver</button>
+      <button class="quiet" id="liverHelp">show me a mark</button>
+    </div>
+  </div>
+</section>
+
+<section class="read" id="liverRead">
+  <div class="col">
+    <div class="small">I. the liver, read</div>
+    <h2>What the liver says</h2>
+    <ul class="signs" id="liverSigns"></ul>
+    <p class="note">Marks on the right speak about you. Marks on the left speak about whoever, or whatever, stands against you.</p>
+    <div class="row"><button id="toSky">Now look up</button><button class="quiet" data-more="liverMore" aria-expanded="false">how a diviner read a liver</button></div>
+    <div class="history" id="liverMore" hidden>
+      <section><h3>The diviner</h3>
+        <p>The specialist was called a bārû, "one who inspects". Before the sheep was killed he prayed to Shamash, the sun god and judge, and to Adad, the storm god, asking them to place a true answer inside the animal.</p></section>
+      <section><h3>The liver as a tablet</h3>
+        <p>Diviners spoke of the liver as a tablet the gods had written on. Its surface was divided into named places: the Presence, the Path, the Palace Gate, the Finger, the Yoke and others. This site's liver is drawn after a clay model in the British Museum, made in the Old Babylonian period, roughly 1900 to 1600 BC, and probably from Sippar. Each box on that model gives the meaning of a blemish found at that spot.</p></section>
+      <section><h3>Right and left</h3>
+        <p>The right side of a feature concerned the person asking. The left concerned the enemy. A bad mark on the left was therefore good news, which is why a hole on the left counts in your favour here.</p></section>
+      <section><h3>Kings, armies, and you</h3>
+        <p>The omen collections mostly speak of kings, armies and city gates, because the best-recorded clients were kings. Under each sign, the first line is in that old voice and the second puts it into everyday terms.</p></section>
+      <p class="note">Draft status: the old-voice omen lines are paraphrases written in the style of the omen collections, not quotations, and the two marks used (Hole and Weapon) follow a simplified rule. They are placeholders until checked translations replace them.</p>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="sky">
+  <div class="bar"><span>II. the sky</span><span id="skyCount"></span></div>
+  <div class="stage"><canvas id="skyC" aria-label="A night sky of hand-drawn stars. Click a star to show the constellation it belongs to."></canvas></div>
+  <div class="foot">
+    <div class="caption" id="skyCap" aria-live="polite">Some of these stars belong to constellations. Search the sky, and choose three.</div>
+    <div class="row">
+      <button id="skyNext" hidden>Read the sky</button>
+      <button class="quiet" id="skyHelp">choose a star for me</button>
+    </div>
+  </div>
+</section>
+
+<section class="read" id="skyRead">
+  <div class="col">
+    <div class="small">II. the sky, read</div>
+    <h2>What the sky says</h2>
+    <ul class="signs" id="skySigns"></ul>
+    <p class="note">A constellation that shines brightly speaks for you. One that is faint speaks against you.</p>
+    <div class="row"><button id="toFinal">Weigh the signs</button><button class="quiet" data-more="skyMore" aria-expanded="false">how a diviner read the sky</button></div>
+    <div class="history" id="skyMore" hidden>
+      <section><h3>Signs sent unasked</h3>
+        <p>Signs in the sky were warnings the gods sent without being asked, collected in the series Enūma Anu Enlil. The constellation names used here come from the Babylonian star list MUL.APIN.</p></section>
+      <section><h3>Sky and liver together</h3>
+        <p>Assyrian kings had worrying sky signs checked by liver, so the two crafts did work together. Personal horoscopes arrived much later, around 410 BC, about a thousand years after the clay liver.</p></section>
+      <p class="note">Draft status: the constellation drawings are sketches, not star charts, and the bright-or-faint rule is a simplification. Both are placeholders.</p>
+    </div>
+  </div>
+</section>
+
+<section class="read" id="final">
+  <div class="col">
+    <div class="small" id="finalTag"></div>
+    <h2>The signs, weighed</h2>
+    <div class="tally"><div><b id="nFor"></b>for you</div><div><b id="nAgainst"></b>against you</div></div>
+    <div class="verdict" id="verdict"></div>
+    <ul class="signs" id="finalSigns"></ul>
+    <p class="note">No single mark settled the matter. The diviner tallied favourable signs against unfavourable ones and gave the balance as the answer. When the result was unclear, a second sheep was read as a check.</p>
+    <div class="row"><button id="again">Draw another liver</button></div>
+    <canvas class="seal" id="seal2" aria-hidden="true"></canvas>
+  </div>
+</section>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const INK='#141414', CHALK='#f3f3ee';
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function shuffle(arr,r){const a=arr.slice();for(let i=a.length-1;i>0;i--){const k=Math.floor(r()*(i+1));[a[i],a[k]]=[a[k],a[i]]}return a}
+const lerp=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+
+/* ---------- content ---------- */
+const ZONES=[
+ {id:'presence',name:'Presence',akk:'manzāzu',a:[.25,.44],v:[0,.055],off:.05,
+  good:['the god will stand at the man\'s side','Something is quietly on your side at the moment.'],
+  bad:['the god will be absent from the man\'s sacrifice','You are on your own for this one. Don\'t wait for a sign.'],
+  eBad:['the enemy\'s god will abandon him','Whoever is against you has just run out of luck.'],
+  eGood:['the enemy\'s god will stand by him','Your rival is having an irritatingly good week.']},
+ {id:'path',name:'Path',akk:'padānu',a:[.25,.64],v:[.012,.05],off:.05,
+  good:['the army will reach its destination','The thing you have set out to do, you will get done.'],
+  bad:['the army will turn back from its campaign','A plan of yours stalls before it properly starts.'],
+  eBad:['the enemy\'s road will be cut','Something that was heading your way to cause trouble never arrives.'],
+  eGood:['the enemy will march against the land','Trouble is on its way, and it knows the route.']},
+ {id:'strength',name:'Strength',akk:'danānu',a:[.38,.30],v:[.02,.04],off:.045,
+  good:['the troops will stand firm','You have more staying power than you think.'],
+  bad:['the strength of the troops will fail','You will run out of steam before the end. Pace yourself.'],
+  eBad:['the enemy\'s troops will scatter','Whatever you are up against gets tired first.'],
+  eGood:['the enemy\'s troops will hold their ground','The problem will not blink first. Settle in.']},
+ {id:'wellbeing',name:'Well-being',akk:'šulmu',a:[.43,.53],v:[0,.05],off:.045,
+  good:['the man will enjoy good health','You will feel properly well. Make use of it.'],
+  bad:['the man\'s household will not be well','Look after yourself. You are running lower than you admit.'],
+  eBad:['sickness will seize the enemy\'s camp','The thing that has been bothering you is losing its energy.'],
+  eGood:['the enemy will be in good heart','Your problem is in annoyingly good health.']},
+ {id:'gate',name:'Palace Gate',akk:'bāb ekalli',a:[.30,.84],v:[0,.04],off:.05,
+  good:['goods will enter the palace','Something welcome is about to come through your door.'],
+  bad:['there will be losses from the palace','Something leaves your house that you would rather keep. Check your pockets.'],
+  eBad:['the enemy\'s gate will stand open','A door that was closed to you has been left unlocked.'],
+  eGood:['the enemy will reach your city gate','An unwelcome guest is closer than you would like.']},
+ {id:'gall',name:'Gall Bladder',akk:'martu',a:null,v:null,off:.075,
+  good:['the king will prevail over his land','You are in charge here, whether or not you have noticed.'],
+  bad:['the king will be troubled','Someone in charge of you is in a mood. Tread lightly.'],
+  eBad:['the enemy king will lose his throne','Someone who has had power over you is about to have less.'],
+  eGood:['the enemy king will grow strong','Someone above you is about to get more say.']},
+ {id:'finger',name:'Finger',akk:'ubānu',a:[.50,.19],v:null,off:.07,
+  good:['the man will stand above his rival','In an argument this week, you come out ahead.'],
+  bad:['the man\'s word will not be heard','You will make a good point and nobody will hear it.'],
+  eBad:['the rival will be put to shame','Someone who doubted you has to admit they were wrong.'],
+  eGood:['the rival\'s word will prevail','Pick your arguments. You would lose this one.']},
+ {id:'yoke',name:'Yoke',akk:'nīru',a:[.81,.36],v:[.02,.05],off:.045,
+  good:['the yoke of the land will be lightened','A weight you have been carrying gets lifted.'],
+  bad:['the yoke will be heavy upon the land','More work is coming and it has your name on it.'],
+  eBad:['the enemy will bear the yoke','Someone else ends up with the job you were dreading.'],
+  eGood:['the enemy will lay his yoke on the land','You will be doing someone else\'s bidding for a while.']}
+];
+
+const STARS=[
+ {name:'The Wagon',akk:'MAR.GID.DA',who:'It circles the pole all year and never sets.',
+  pts:[[0,.3],[.2,.25],[.4,.32],[.55,.45],[.6,.7],[.9,.75],[.95,.5]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,3]],
+  bright:'Something you rely on stays exactly where it is.',faint:'Don\'t assume the usual thing will be there. Check first.'},
+ {name:'The Bull of Heaven',akk:'GU.AN.NA',who:'The bull sent against Gilgamesh.',
+  pts:[[.5,.65],[.35,.48],[.2,.32],[.65,.46],[.8,.28],[.02,.08],[.98,.02]],edges:[[0,1],[1,2],[0,3],[3,4],[2,5],[4,6]],
+  bright:'You have a great deal of force behind you. Aim it at one thing.',faint:'Something large and stubborn is in the way. Go around it.'},
+ {name:'The True Shepherd of Anu',akk:'SIPA.ZI.AN.NA',who:'Messenger of the gods.',
+  pts:[[.25,.1],[.75,.15],[.4,.48],[.5,.5],[.6,.52],[.2,.9],[.8,.88]],edges:[[0,1],[0,2],[1,4],[2,3],[3,4],[2,5],[4,6]],
+  bright:'News arrives, and it is the good kind.',faint:'A message goes astray. Say the important thing twice.'},
+ {name:'The Great Twins',akk:'MASH.TAB.BA.GAL.GAL',who:'Two gods who guard a gate.',
+  pts:[[.2,.1],[.25,.5],[.3,.9],[.7,.1],[.7,.5],[.75,.9]],edges:[[0,1],[1,2],[3,4],[4,5],[1,4]],
+  bright:'Someone has your back, and you know who.',faint:'Mind the door. Lock up, and keep a spare copy.'},
+ {name:'The Scorpion',akk:'GIR.TAB',who:'Star of Ishhara, goddess of oaths.',
+  pts:[[.08,.15],[.2,.3],[.08,.42],[.35,.4],[.5,.55],[.6,.75],[.75,.88],[.92,.8],[.95,.6]],edges:[[0,1],[2,1],[1,3],[3,4],[4,5],[5,6],[6,7],[7,8]],
+  bright:'A promise made to you will be kept.',faint:'A small sting is coming. Look where you put your hand.'},
+ {name:'The Scales',akk:'ZI.BA.AN.NA',who:'Star of Shamash, judge of heaven and earth.',
+  pts:[[.5,.1],[.15,.5],[.85,.5],[.5,.88]],edges:[[0,1],[0,2],[1,2],[1,3],[2,3]],
+  bright:'You will be treated fairly.',faint:'A small decision goes against you. Unfair, but minor.'},
+ {name:'The Furrow',akk:'AB.SIN',who:'The ear of grain held by the goddess Shala.',
+  pts:[[.1,.2],[.3,.35],[.5,.5],[.7,.45],[.9,.3],[.6,.75],[.7,.95]],edges:[[0,1],[1,2],[2,3],[3,4],[2,5],[5,6]],
+  bright:'What you planted is coming up.',faint:'It is too early to harvest. Wait a little.'},
+ {name:'The Goat-Fish',akk:'SUHUR.MASH',who:'Creature of Ea, god of wisdom and fresh water.',
+  pts:[[.05,.3],[.3,.2],[.6,.3],[.95,.2],[.75,.6],[.45,.75],[.2,.6]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0]],
+  bright:'A clever way through occurs to you.',faint:'You are overthinking it.'}
+];
+
+/* ---------- generation ---------- */
+let seed, L, K, frame=0, current='intro';
+
+function generate(s){
+  seed=s; const r=mulberry32(s);
+  const base=[[.18,.30],[.30,.14],[.48,.08],[.66,.12],[.82,.22],[.93,.40],[.95,.58],[.86,.72],[.70,.80],[.52,.78],[.44,.84],[.42,.95],[.28,.96],[.14,.92],[.08,.74],[.07,.52],[.10,.38]];
+  const sx=.95+r()*.09, sy=.95+r()*.08;
+  const outline=base.map(([x,y])=>[.5+(x-.5)*sx+(r()-.5)*.035,.52+(y-.52)*sy+(r()-.5)*.035]);
+  // gall bladder
+  const A=[.57+(r()-.5)*.03,.33+(r()-.5)*.03], B=[.66+(r()-.5)*.06,.66+(r()-.5)*.05];
+  const W=.028+r()*.012, dx=B[0]-A[0], dy=B[1]-A[1], len=Math.hypot(dx,dy), n=[-dy/len,dx/len];
+  const gb=[]; const steps=6;
+  for(let i=0;i<=steps;i++){const t=i/steps,c=lerp(A,B,t),wd=W*Math.sqrt(Math.sin(Math.PI*t))*(.5+.6*t);gb.push([c[0]+n[0]*wd,c[1]+n[1]*wd])}
+  for(let i=steps-1;i>=1;i--){const t=i/steps,c=lerp(A,B,t),wd=W*Math.sqrt(Math.sin(Math.PI*t))*(.5+.6*t);gb.push([c[0]-n[0]*wd,c[1]-n[1]*wd])}
+  const gbMid=lerp(A,B,.5);
+  // finger
+  const fs=.035+r()*.02, fc=[.50,.19];
+  const finger=[[fc[0],fc[1]-fs*1.3],[fc[0]+fs,fc[1]+fs*.3],[fc[0]+fs*.5,fc[1]+fs],[fc[0]-fs*.6,fc[1]+fs*.9],[fc[0]-fs,fc[1]+fs*.2]].map(p=>[p[0]+(r()-.5)*.01,p[1]+(r()-.5)*.01]);
+  // grid
+  const grid=[]; const nh=2+Math.floor(r()*2), nv=2+Math.floor(r()*2);
+  for(let i=0;i<nh;i++){const y=.25+(i+r()*.6)*(.55/nh);grid.push([[0,y+(r()-.5)*.04],[.5,y+(r()-.5)*.04],[1,y+(r()-.5)*.04]])}
+  for(let i=0;i<nv;i++){const x=.2+(i+r()*.6)*(.6/nv);grid.push([[x+(r()-.5)*.04,0],[x+(r()-.5)*.04,.5],[x+(r()-.5)*.04,1]])}
+  // marks
+  const count=3+Math.floor(r()*3);
+  const marks=shuffle(ZONES,r).slice(0,count).map(z=>{
+    const a=z.id==='gall'?gbMid:z.a, side=r()<.5?'right':'left', type=r()<.5?'hole':'weapon';
+    const sgn=side==='right'?1:-1;
+    return {zone:z,side,type,found:false,vis:0,rot:r()*Math.PI*2,
+      u:[a[0]+sgn*z.off+(r()-.5)*.012,a[1]+(r()-.5)*(z.v?.05:.03)]};
+  });
+  L={outline,gb,gbLine:[lerp(A,B,.2),lerp(A,B,.5),lerp(A,B,.8)],finger,grid,marks};
+
+  // sky
+  const picks=shuffle(STARS,r).slice(0,6).map(c=>({c,bright:r()<.55,rev:false,t0:0,rot:r()*Math.PI*2,flip:r()<.5}));
+  const bg=[]; for(let i=0;i<260;i++) bg.push({x:r(),y:r(),ast:r()<.3,s:r(),a:.25+r()*.75,rot:r()*3});
+  K={picks,bg,hoverP:null,hoverI:-1,cache:null};
+}
+
+/* ---------- drawing helpers ---------- */
+function setup(c){
+  const fit=()=>{const b=c.getBoundingClientRect(),d=Math.min(window.devicePixelRatio||1,2);
+    c.w=b.width;c.h=b.height;c.width=Math.round(b.width*d);c.height=Math.round(b.height*d);
+    c.ctx=c.getContext('2d');c.ctx.setTransform(d,0,0,d,0,0);c.ctx.lineCap='round';c.ctx.lineJoin='round';draw()};
+  new ResizeObserver(fit).observe(c); c.px=-999;c.py=-999; return c;
+}
+function trace(ctx,p,closed){
+  const n=p.length; ctx.beginPath();
+  if(closed){const m0=lerp(p[n-1],p[0],.5);ctx.moveTo(m0[0],m0[1]);
+    for(let i=0;i<n;i++){const a=p[i],m=lerp(a,p[(i+1)%n],.5);ctx.quadraticCurveTo(a[0],a[1],m[0],m[1])}ctx.closePath()}
+  else{ctx.moveTo(p[0][0],p[0][1]);
+    for(let i=1;i<n-1;i++){const m=lerp(p[i],p[i+1],.5);ctx.quadraticCurveTo(p[i][0],p[i][1],m[0],m[1])}
+    ctx.lineTo(p[n-1][0],p[n-1][1])}
+}
+function wob(ctx,p,j,amp,closed){trace(ctx,p.map(q=>[q[0]+(j()-.5)*amp,q[1]+(j()-.5)*amp]),closed);ctx.stroke()}
+function seg(ctx,a,b,j,amp,t){const e=t==null?b:lerp(a,b,t);wob(ctx,[a,lerp(a,e,.35),lerp(a,e,.7),e],j,amp,false)}
+function ring(ctx,x,y,rad,j,amp){const p=[];for(let i=0;i<9;i++){const an=i/9*Math.PI*2;p.push([x+Math.cos(an)*rad,y+Math.sin(an)*rad])}wob(ctx,p,j,amp,true)}
+function star(ctx,x,y,s,j,rot){for(let i=0;i<3;i++){const an=rot+i*Math.PI/3+(j()-.5)*.25,l=s*(.8+j()*.4);
+  ctx.beginPath();ctx.moveTo(x-Math.cos(an)*l,y-Math.sin(an)*l);ctx.lineTo(x+Math.cos(an)*l,y+Math.sin(an)*l);ctx.stroke()}}
+function hand(ctx,px,w){ctx.font=(w||400)+' '+px+'px Gaegu, "Bradley Hand", "Comic Sans MS", cursive'}
+
+/* ---------- liver ---------- */
+const liverC=setup($('liverC'));
+function liverBox(){const c=liverC,S=Math.min(c.w,c.h)*.98;return{S,ox:(c.w-S)/2,oy:(c.h-S)/2}}
+function drawLiver(){
+  const c=liverC,ctx=c.ctx; if(!ctx||!L) return;
+  ctx.clearRect(0,0,c.w,c.h);
+  const {S,ox,oy}=liverBox(), P=u=>[ox+u[0]*S,oy+u[1]*S];
+  const j=mulberry32(seed*7+frame*131), amp=S*.006, lw=Math.max(1.8,S*.0055);
+  ctx.strokeStyle=INK;ctx.fillStyle=INK;
+  // faint grid, kept inside the outline
+  ctx.save();trace(ctx,L.outline.map(P),true);ctx.clip();ctx.globalAlpha=.15;ctx.lineWidth=lw*.6;
+  L.grid.forEach(g=>wob(ctx,g.map(P),j,amp*1.5,false));ctx.restore();
+  // outline, drawn twice for a sketched line
+  ctx.lineWidth=lw;wob(ctx,L.outline.map(P),j,amp,true);
+  ctx.globalAlpha=.45;ctx.lineWidth=lw*.6;wob(ctx,L.outline.map(P),j,amp*2.2,true);ctx.globalAlpha=1;
+  ctx.lineWidth=lw*.9;wob(ctx,L.gb.map(P),j,amp,true);
+  ctx.lineWidth=lw*.5;ctx.globalAlpha=.5;wob(ctx,L.gbLine.map(P),j,amp,false);ctx.globalAlpha=1;
+  ctx.lineWidth=lw*.9;wob(ctx,L.finger.map(P),j,amp,true);
+  // grooves for the named places
+  ctx.lineWidth=lw*.7;ctx.globalAlpha=.55;
+  ZONES.forEach(z=>{if(!z.v)return;seg(ctx,P([z.a[0]-z.v[0],z.a[1]-z.v[1]]),P([z.a[0]+z.v[0],z.a[1]+z.v[1]]),j,amp*1.4)});
+  ctx.globalAlpha=1;
+  // marks
+  const R=S*.13;
+  L.marks.forEach(m=>{
+    const [x,y]=P(m.u), d=Math.hypot(x-c.px,y-c.py);
+    const target=m.found?1:Math.max(.04,Math.min(.75,1.15-d/R));
+    m.vis+= (target-m.vis)*(reduced?1:.5);
+    ctx.globalAlpha=m.vis;ctx.lineWidth=lw;
+    if(m.type==='hole'){const p=[];for(let i=0;i<7;i++){const an=i/7*Math.PI*2;p.push([x+Math.cos(an)*S*.012,y+Math.sin(an)*S*.012])}
+      trace(ctx,p.map(q=>[q[0]+(j()-.5)*amp,q[1]+(j()-.5)*amp]),true);ctx.fill()}
+    else{const l=S*.03,cs=Math.cos(m.rot),sn=Math.sin(m.rot),tip=[x+cs*l,y+sn*l],tail=[x-cs*l,y-sn*l],hw=S*.013;
+      seg(ctx,tail,tip,j,amp);
+      trace(ctx,[[tail[0]-sn*hw+(j()-.5)*amp,tail[1]+cs*hw+(j()-.5)*amp],[tail[0]+sn*hw+(j()-.5)*amp,tail[1]-cs*hw+(j()-.5)*amp],[x-cs*l*.35,y-sn*l*.35]],true);ctx.fill()}
+    if(m.found){ctx.lineWidth=lw*.6;ring(ctx,x,y,S*.045,j,amp*1.6);
+      hand(ctx,Math.max(15,S*.036),700);ctx.textAlign='center';ctx.textBaseline='top';
+      ctx.fillText(m.zone.name.toLowerCase(),x,y+S*.05)}
+    ctx.globalAlpha=1;
+  });
+  // lamplight ring around the pointer
+  if(c.px>-900 && L.marks.some(m=>!m.found)){ctx.globalAlpha=.22;ctx.lineWidth=lw*.5;ctx.setLineDash([4,7]);ring(ctx,c.px,c.py,R*.8,j,amp*2);ctx.setLineDash([]);ctx.globalAlpha=1}
+}
+function findMark(m){
+  m.found=true;
+  const n=L.marks.filter(x=>x.found).length, t=L.marks.length;
+  $('liverCount').textContent=n+' of '+t+' marks found';
+  $('liverCap').textContent='A '+(m.type==='hole'?'Hole':'Weapon')+', on the '+m.side+' of the '+m.zone.name+' ('+m.zone.akk+').';
+  if(n===t){$('liverNext').hidden=false;$('liverHelp').hidden=true;
+    $('liverCap').textContent+=' That is every mark.'}
+  draw();
+}
+function pointer(c,e){const b=c.getBoundingClientRect();c.px=e.clientX-b.left;c.py=e.clientY-b.top}
+liverC.addEventListener('pointermove',e=>{pointer(liverC,e);if(reduced)draw()});
+liverC.addEventListener('pointerleave',()=>{liverC.px=liverC.py=-999});
+liverC.addEventListener('pointerdown',e=>{
+  pointer(liverC,e);const {S,ox,oy}=liverBox();let best=null,bd=1e9;
+  L.marks.forEach(m=>{if(m.found)return;const d=Math.hypot(ox+m.u[0]*S-liverC.px,oy+m.u[1]*S-liverC.py);if(d<bd){bd=d;best=m}});
+  const reach=S*(e.pointerType==='mouse'?.06:.085);
+  if(best&&bd<reach) findMark(best);
+  else if(best){$('liverCap').textContent=bd<S*.2?'Close. Look again nearby.':'Nothing there. Keep looking.'}
+});
+$('liverHelp').onclick=()=>{const m=L.marks.find(x=>!x.found);if(m)findMark(m)};
+
+/* ---------- sky ---------- */
+const skyC=setup($('skyC'));
+function skyLayout(){
+  const c=skyC; if(K.cache&&K.cache.w===c.w&&K.cache.h===c.h) return K.cache.g;
+  // scatter the constellations: position and rotation both come from the seed
+  const r=mulberry32(seed*13+5), M=Math.min(c.w,c.h);
+  let box=Math.min(M*.3,Math.sqrt(c.w*c.h/6)*.6), cen=[];
+  for(let attempt=0;attempt<12&&cen.length<K.picks.length;attempt++){
+    cen=[];const rad=box*.62;
+    for(let t=0;t<500&&cen.length<K.picks.length;t++){
+      const x=rad+r()*(c.w-2*rad), y=rad+r()*(c.h-2*rad-24);
+      if(cen.every(q=>Math.hypot(q[0]-x,q[1]-y)>rad*2)) cen.push([x,y]);
+    }
+    if(cen.length<K.picks.length) box*=.9;
+  }
+  const g=K.picks.map((p,i)=>{const o=cen[i]||[c.w/2,c.h/2],cs=Math.cos(p.rot),sn=Math.sin(p.rot);
+    const pts=p.c.pts.map(([x,y])=>{const a=(p.flip?.5-x:x-.5)*box,b=(y-.5)*box;return [o[0]+a*cs-b*sn,o[1]+a*sn+b*cs]});
+    return {p,pts,label:[o[0],Math.max.apply(null,pts.map(q=>q[1]))+box*.08]}});
+  K.cache={w:c.w,h:c.h,g}; return g;
+}
+function picked(){return K.picks.filter(p=>p.rev).length}
+function drawSky(){
+  const c=skyC,ctx=c.ctx; if(!ctx||!K) return;
+  ctx.clearRect(0,0,c.w,c.h);
+  const j=mulberry32(seed*11+frame*173), M=Math.min(c.w,c.h), lw=Math.max(1.4,M*.0035), now=performance.now();
+  ctx.strokeStyle=CHALK;ctx.fillStyle=CHALK;
+  // the crowd of ordinary stars
+  K.bg.forEach(s=>{ctx.globalAlpha=s.a;
+    if(s.ast){ctx.lineWidth=lw*(.6+s.s*.5);star(ctx,s.x*c.w,s.y*c.h,M*(.004+s.s*.008),j,s.rot)}
+    else{ctx.beginPath();ctx.arc(s.x*c.w+(j()-.5),s.y*c.h+(j()-.5),.6+s.s*1.5,0,7);ctx.fill()}});
+  skyLayout().forEach(g=>{
+    const p=g.p, hov=K.hoverP===p, show=p.rev||hov;
+    if(show){
+      const prog=reduced?1:Math.min(1,(now-p.t0)/600), E=p.c.edges, total=E.length*prog;
+      ctx.globalAlpha=p.rev?.85:.6;ctx.lineWidth=lw*.8;
+      E.forEach((e,i)=>{const t=Math.max(0,Math.min(1,total-i));if(t>0)seg(ctx,g.pts[e[0]],g.pts[e[1]],j,M*.004,t)});
+      if(p.rev&&prog>=1){ctx.globalAlpha=1;hand(ctx,Math.max(16,M*.034),400);ctx.textAlign='center';ctx.textBaseline='top';
+        ctx.fillText(p.c.name.toLowerCase(),g.label[0],g.label[1])}
+    }
+    g.pts.forEach((q,i)=>{
+      const me=hov&&K.hoverI===i;
+      ctx.globalAlpha=show?1:(p.bright?.95:.6);
+      ctx.lineWidth=lw*(p.bright?1.1:.8);
+      star(ctx,q[0],q[1],M*(p.bright?.012:.008)*(me?1.8:show?1.2:1),j,i*.7);
+    });
+    ctx.globalAlpha=1;
+  });
+}
+function nearestStar(reach){
+  let best=null,bd=1e9;
+  skyLayout().forEach(g=>g.pts.forEach((q,i)=>{const d=Math.hypot(q[0]-skyC.px,q[1]-skyC.py);if(d<bd){bd=d;best={p:g.p,i}}}));
+  if(!best||bd>(reach||22)) return null;
+  if(!best.p.rev&&picked()>=3) return null;
+  return best;
+}
+function setHover(h){
+  const p=h?h.p:null;
+  if(p!==K.hoverP){K.hoverP=p;if(p&&!p.rev){p.t0=performance.now();
+    $('skyCap').textContent='These stars belong together. Click to read them.'}}
+  K.hoverI=h?h.i:-1; skyC.style.cursor=h?'pointer':'crosshair';
+}
+function reveal(p){
+  if(p.rev||picked()>=3) return;
+  if(K.hoverP!==p) p.t0=performance.now();
+  p.rev=true;
+  const n=picked();
+  $('skyCount').textContent=n+' of 3 constellations read';
+  $('skyCap').textContent=p.c.name+', '+(p.bright?'shining brightly':'faint tonight')+'. '+p.c.who;
+  if(n>=3){$('skyNext').hidden=false;$('skyHelp').hidden=true}
+  draw();
+}
+skyC.addEventListener('pointermove',e=>{pointer(skyC,e);setHover(nearestStar());if(reduced)draw()});
+skyC.addEventListener('pointerleave',()=>{setHover(null)});
+skyC.addEventListener('pointerdown',e=>{pointer(skyC,e);const h=nearestStar(e.pointerType==='mouse'?22:32);
+  if(h)reveal(h.p);else if(picked()<3)$('skyCap').textContent='Just a star. Keep searching.'});
+$('skyHelp').onclick=()=>{const p=K.picks.find(x=>!x.rev);if(p)reveal(p)};
+
+/* ---------- seal strip ---------- */
+function drawSeal(c){
+  const b=c.getBoundingClientRect(); if(!b.width) return;
+  const d=Math.min(window.devicePixelRatio||1,2);c.width=b.width*d;c.height=b.height*d;
+  const ctx=c.getContext('2d');ctx.setTransform(d,0,0,d,0,0);ctx.lineCap='round';ctx.strokeStyle=INK;ctx.lineWidth=1.6;
+  const j=mulberry32(99), w=b.width,h=b.height;
+  seg(ctx,[2,4],[w-2,4],j,2);seg(ctx,[2,h-4],[w-2,h-4],j,2);
+  const unit=h*1.9, count=Math.floor(w/unit), pad=(w-count*unit)/2;
+  for(let i=0;i<count;i++){const cx=pad+unit*(i+.5),cy=h/2,k=i%3;
+    if(k===0){for(let a=0;a<4;a++){const an=a*Math.PI/4,l=h*.26;seg(ctx,[cx-Math.cos(an)*l,cy-Math.sin(an)*l],[cx+Math.cos(an)*l,cy+Math.sin(an)*l],j,1.5)}}
+    else if(k===1){ring(ctx,cx,cy-h*.08,h*.12,j,1.5);const p=[];for(let a=0;a<=6;a++){const an=Math.PI*(.05+.9*a/6);p.push([cx+Math.cos(an)*h*.26,cy-h*.02+Math.sin(an)*h*.24])}wob(ctx,p,j,1.5,false)}
+    else{for(let a=-1;a<=1;a++){seg(ctx,[cx+a*h*.16,cy-h*.26],[cx+a*h*.16,cy+h*.26],j,1.8)}}
+  }
+}
+
+/* ---------- readings ---------- */
+function liverEntries(){
+  return L.marks.map(m=>{const own=m.side==='right',weapon=m.type==='weapon';
+    const key=own?(weapon?'good':'bad'):(weapon?'eGood':'eBad'), fav=own===weapon;
+    const prep=(m.zone.id==='gall'||m.zone.id==='finger')?'to the '+m.side+' of':'on the '+m.side+' of';
+    return {fav,where:(weapon?'weapon':'hole')+' · '+m.side+' of the '+m.zone.name.toLowerCase()+' ('+m.zone.akk+')',
+      old:'If there is a '+(weapon?'Weapon':'Hole')+' '+prep+' the '+m.zone.name+': '+m.zone[key][0]+'.',now:m.zone[key][1]}});
+}
+function skyEntries(){
+  return K.picks.filter(p=>p.rev).map(p=>({fav:p.bright,where:p.c.name.toLowerCase()+' ('+p.c.akk+') · '+(p.bright?'bright':'faint'),
+    old:p.c.who,now:p.bright?p.c.bright:p.c.faint}));
+}
+function fill(ul,entries){
+  ul.textContent='';
+  entries.forEach(e=>{const li=document.createElement('li');li.className='sign'+(e.fav?'':' against');
+    [['where',e.where+' · '+(e.fav?'for you':'against you')],['old',e.old],['now',e.now]].forEach(([k,t])=>{if(!t)return;const d=document.createElement('div');d.className=k;d.textContent=t;li.appendChild(d)});
+    ul.appendChild(li)});
+}
+function showFinal(){
+  const all=liverEntries().concat(skyEntries()), f=all.filter(e=>e.fav).length, u=all.length-f;
+  fill($('finalSigns'),all.map(e=>({fav:e.fav,where:e.where,old:'',now:e.now})));
+  $('nFor').textContent=f;$('nAgainst').textContent=u;
+  $('verdict').textContent=f>u?'The signs lean in your favour.':f<u?'The signs lean against you.':'The signs are evenly split. A diviner would ask for a second sheep.';
+  $('finalTag').textContent='liver no. '+seed+' · the overall reading';
+  go('final');
+}
+
+/* ---------- flow ---------- */
+function go(id){
+  current=id;
+  document.querySelectorAll('.screen,.read').forEach(s=>s.classList.toggle('on',s.id===id));
+  document.body.style.background=id==='sky'?'#0d0d0d':'#fdfdfb';
+  const el=$(id); if(el.classList.contains('read')) el.scrollTop=0;
+  if(id==='final') requestAnimationFrame(()=>drawSeal($('seal2')));
+  if(id==='intro') requestAnimationFrame(()=>drawSeal($('seal1')));
+  draw();
+}
+function draw(){if(current==='liver')drawLiver();else if(current==='sky')drawSky()}
+function start(s){
+  generate(s);
+  $('seedTag').textContent='liver no. '+seed;
+  $('liverCount').textContent='0 of '+L.marks.length+' marks found';
+  $('skyCount').textContent='0 of 3 constellations read';
+  $('liverCap').textContent='The gods have left marks on it. Move slowly and click where you see one.';
+  $('skyCap').textContent='Some of these stars belong to constellations. Search the sky, and choose three.';
+  ['liverNext','skyNext','liverMore','skyMore'].forEach(i=>$(i).hidden=true);['liverHelp','skyHelp'].forEach(i=>$(i).hidden=false);
+  try{history.replaceState(null,'','#liver-'+seed)}catch(e){}
+}
+$('begin').onclick=()=>go('liver');
+$('liverNext').onclick=()=>{fill($('liverSigns'),liverEntries());go('liverRead')};
+$('toSky').onclick=()=>go('sky');
+$('skyNext').onclick=()=>{fill($('skySigns'),skyEntries());go('skyRead')};
+$('toFinal').onclick=showFinal;
+document.querySelectorAll('[data-more]').forEach(b=>b.onclick=()=>{const d=$(b.dataset.more);d.hidden=!d.hidden;b.setAttribute('aria-expanded',String(!d.hidden))});
+$('again').onclick=()=>{start(10000+Math.floor(Math.random()*90000));go('intro')};
+
+const m=/^#liver-(\d{1,9})$/.exec(location.hash||'');
+start(m?parseInt(m[1],10):10000+Math.floor(Math.random()*90000));
+drawSeal($('seal1'));
+window.addEventListener('resize',()=>{if(current==='intro')drawSeal($('seal1'));if(current==='final')drawSeal($('seal2'))});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(draw);
+// the lines "boil": redrawn a few times a second with slightly different wobble
+let last=0;
+(function loop(t){
+  if(!reduced){ if(t-last>150){last=t;frame=(frame+1)%4;draw()} else if(current==='sky'&&K.picks.some(p=>(p.rev||K.hoverP===p)&&performance.now()-p.t0<700)){draw()} }
+  requestAnimationFrame(loop);
+})(0);
+})();
+</script>
+</body>
+</html>
